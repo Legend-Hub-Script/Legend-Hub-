@@ -1,0 +1,360 @@
+local LegendHub = {
+    Flags = {
+        WalkSpeed = false,
+        WSValue = 16,
+        AutoHit = false,
+        InfJump = false,
+        AutoTouch = false,
+        CollectMoney = false,
+        AutoRebirth = false,
+        -- Novas Flags
+        AntiLag = false,
+        AntiRagdoll = false,
+        ESPPlayer = false,
+        AutoBuyClicker = false,
+        AutoBuyIng = false,
+        SelectedIng = "Ice Emblem",
+        AutoBuyBrainrots = false,
+        SelectedRarity = "Common"
+    }
+}
+
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local Player = Players.LocalPlayer
+
+-- [ LIMPEZA ]
+if game.CoreGui:FindFirstChild("LegendHubMobile") then game.CoreGui.LegendHubMobile:Destroy() end
+
+local Screen = Instance.new("ScreenGui", game.CoreGui)
+Screen.Name = "LegendHubMobile"
+
+-- [ SISTEMA DE NOTIFICAÇÃO ]
+local function Notify(title, text)
+    local NotifyFrame = Instance.new("Frame", Screen)
+    NotifyFrame.Size = UDim2.new(0, 220, 0, 60)
+    NotifyFrame.Position = UDim2.new(1, 20, 1, -80)
+    NotifyFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+    Instance.new("UICorner", NotifyFrame)
+    local stroke = Instance.new("UIStroke", NotifyFrame)
+    stroke.Color = Color3.fromHex("#404EED")
+    
+    local img = Instance.new("ImageLabel", NotifyFrame)
+    img.Size = UDim2.new(0, 30, 0, 30); img.Position = UDim2.new(0, 10, 0.5, -15)
+    img.BackgroundTransparency = 1; img.Image = "rbxassetid://110113107041730"
+
+    local t = Instance.new("TextLabel", NotifyFrame)
+    t.Size = UDim2.new(1, -50, 0, 20); t.Position = UDim2.new(0, 45, 0, 10)
+    t.Text = title; t.TextColor3 = Color3.fromHex("#404EED"); t.Font = "GothamBlack"; t.TextSize = 13; t.BackgroundTransparency = 1; t.TextXAlignment = "Left"
+
+    local desc = Instance.new("TextLabel", NotifyFrame)
+    desc.Size = UDim2.new(1, -50, 0, 20); desc.Position = UDim2.new(0, 45, 0, 28)
+    desc.Text = text; desc.TextColor3 = Color3.new(1, 1, 1); desc.Font = "GothamBold"; desc.TextSize = 11; desc.BackgroundTransparency = 1; desc.TextXAlignment = "Left"
+
+    NotifyFrame:TweenPosition(UDim2.new(1, -230, 1, -80), "Out", "Back", 0.5, true)
+    task.delay(3, function()
+        if NotifyFrame then
+            NotifyFrame:TweenPosition(UDim2.new(1, 20, 1, -80), "In", "Back", 0.5, true)
+            task.wait(0.5); NotifyFrame:Destroy()
+        end
+    end)
+end
+
+-- [ SISTEMA DE ARRASTE ANTI-BUG (MULTI-TOUCH) ]
+local function MakeDraggable(obj)
+    local dragging = false
+    local dragInput
+    local dragStart
+    local startPos
+
+    obj.InputBegan:Connect(function(input)
+        if not dragging and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+            dragging = true
+            dragStart = input.Position
+            startPos = obj.Position
+            dragInput = input
+
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+
+    obj.InputChanged:Connect(function(input)
+        if dragging and input == dragInput and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - dragStart
+            obj.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+end
+
+-- [ PAINEL PRINCIPAL ]
+local Main = Instance.new("Frame", Screen)
+Main.Size = UDim2.new(0, 360, 0, 260); Main.Position = UDim2.new(0.5, -180, 0.5, -130)
+Main.BackgroundColor3 = Color3.fromRGB(8, 8, 8); Main.Visible = false
+Instance.new("UICorner", Main)
+Instance.new("UIStroke", Main).Color = Color3.fromRGB(255, 120, 0)
+MakeDraggable(Main)
+
+-- Sidebar
+local Sidebar = Instance.new("Frame", Main)
+Sidebar.Size = UDim2.new(0, 100, 1, -10); Sidebar.Position = UDim2.new(0, 5, 0, 5)
+Sidebar.BackgroundColor3 = Color3.fromRGB(12, 12, 12); Instance.new("UICorner", Sidebar)
+
+local SideTitle = Instance.new("TextLabel", Sidebar)
+SideTitle.Size = UDim2.new(1, 0, 0, 35); SideTitle.Text = "Legend Hub"; SideTitle.TextColor3 = Color3.fromRGB(255, 120, 0)
+SideTitle.Font = "GothamBlack"; SideTitle.TextSize = 13; SideTitle.BackgroundTransparency = 1
+
+local TabHolder = Instance.new("Frame", Sidebar)
+TabHolder.Size = UDim2.new(1, 0, 1, -40); TabHolder.Position = UDim2.new(0, 0, 0, 40); TabHolder.BackgroundTransparency = 1
+local TabList = Instance.new("UIListLayout", TabHolder); TabList.Padding = UDim.new(0, 5); TabList.HorizontalAlignment = "Center"
+
+local Container = Instance.new("Frame", Main)
+Container.Size = UDim2.new(1, -115, 1, -10); Container.Position = UDim2.new(0, 110, 0, 5); Container.BackgroundTransparency = 1
+
+-- Gerenciador de Abas
+local Tabs = {}
+local function CreateTab(name)
+    local Page = Instance.new("ScrollingFrame", Container)
+    Page.Size = UDim2.new(1, 0, 1, 0); Page.BackgroundTransparency = 1; Page.Visible = false; Page.ScrollBarThickness = 0
+    Page.AutomaticCanvasSize = Enum.AutomaticSize.Y; Page.CanvasSize = UDim2.new(0,0,0,0)
+    
+    local Layout = Instance.new("UIListLayout", Page); Layout.Padding = UDim.new(0, 8); Layout.HorizontalAlignment = "Center"
+    Instance.new("UIPadding", Page).PaddingTop = UDim.new(0, 5)
+    
+    local TabBtn = Instance.new("TextButton", TabHolder)
+    TabBtn.Size = UDim2.new(0.9, 0, 0, 30); TabBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    TabBtn.Text = name; TabBtn.TextColor3 = Color3.fromRGB(180, 180, 180); TabBtn.Font = "GothamBold"; TabBtn.TextSize = 10; Instance.new("UICorner", TabBtn)
+    
+    TabBtn.MouseButton1Click:Connect(function()
+        for _, v in pairs(Tabs) do v.Page.Visible = false; v.Btn.BackgroundColor3 = Color3.fromRGB(20, 20, 20); v.Btn.TextColor3 = Color3.fromRGB(180, 180, 180) end
+        Page.Visible = true; TabBtn.BackgroundColor3 = Color3.fromRGB(255, 120, 0); TabBtn.TextColor3 = Color3.new(1,1,1)
+    end)
+    Tabs[name] = {Page = Page, Btn = TabBtn}
+    return Page
+end
+
+-- [ DROPDOWN PARA AUTO BUY ]
+function LegendHub:CreateDropdown(text, options, parent, callback)
+    local Frame = Instance.new("Frame", parent); Frame.Size = UDim2.new(0.94, 0, 0, 40); Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20); Instance.new("UICorner", Frame); Instance.new("UIStroke", Frame).Color = Color3.fromRGB(255, 120, 0)
+    local Label = Instance.new("TextLabel", Frame); Label.Size = UDim2.new(1, 0, 0, 15); Label.Text = text; Label.TextColor3 = Color3.new(1,1,1); Label.Font = "GothamBold"; Label.TextSize = 9; Label.BackgroundTransparency = 1
+    local Btn = Instance.new("TextButton", Frame); Btn.Size = UDim2.new(0.8, 0, 0, 20); Btn.Position = UDim2.new(0.1, 0, 0.45, 0); Btn.BackgroundColor3 = Color3.fromRGB(30, 30, 30); Btn.Text = options[1]; Btn.TextColor3 = Color3.fromRGB(255, 120, 0); Btn.Font = "GothamBold"; Btn.TextSize = 9; Instance.new("UICorner", Btn)
+    local current = 1
+    Btn.MouseButton1Click:Connect(function()
+        current = current + 1; if current > #options then current = 1 end
+        Btn.Text = options[current]; callback(options[current])
+    end)
+end
+
+-- [ SUB-MENU AUTO COMPRA ]
+local BuyMenu = Instance.new("Frame", Screen)
+BuyMenu.Size = UDim2.new(0, 220, 0, 120); BuyMenu.Position = UDim2.new(0.5, 190, 0.5, -60)
+BuyMenu.BackgroundColor3 = Color3.fromRGB(8, 8, 8); BuyMenu.Visible = false
+Instance.new("UICorner", BuyMenu); Instance.new("UIStroke", BuyMenu).Color = Color3.fromRGB(255, 120, 0)
+MakeDraggable(BuyMenu)
+
+local BuyTitle = Instance.new("TextLabel", BuyMenu)
+BuyTitle.Text = "Legend Hub"; BuyTitle.Size = UDim2.new(1, 0, 0, 35); BuyTitle.TextColor3 = Color3.fromRGB(255, 120, 0)
+BuyTitle.BackgroundTransparency = 1; BuyTitle.Font = "GothamBlack"; BuyTitle.TextSize = 13
+
+local BuyContent = Instance.new("Frame", BuyMenu)
+BuyContent.Size = UDim2.new(1, 0, 1, -35); BuyContent.Position = UDim2.new(0, 0, 0, 35); BuyContent.BackgroundTransparency = 1
+local BuyLayout = Instance.new("UIListLayout", BuyContent); BuyLayout.HorizontalAlignment = "Center"; BuyLayout.VerticalAlignment = "Center"
+
+-- [ COMPONENTES ]
+function LegendHub:CreateToggle(text, parent, callback)
+    local ButtonFrame = Instance.new("Frame", parent); ButtonFrame.Size = UDim2.new(0.94, 0, 0, 38); ButtonFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+    Instance.new("UICorner", ButtonFrame); Instance.new("UIStroke", ButtonFrame).Color = Color3.fromRGB(255, 120, 0)
+    local Label = Instance.new("TextLabel", ButtonFrame); Label.Text = text; Label.Size = UDim2.new(1, -50, 1, 0); Label.Position = UDim2.new(0, 10, 0, 0); Label.TextColor3 = Color3.new(1, 1, 1); Label.BackgroundTransparency = 1; Label.Font = "GothamBold"; Label.TextXAlignment = "Left"; Label.TextSize = 10
+    local SwitchBG = Instance.new("TextButton", ButtonFrame); SwitchBG.Size = UDim2.new(0, 30, 0, 14); SwitchBG.Position = UDim2.new(1, -38, 0.5, -7); SwitchBG.BackgroundColor3 = Color3.fromRGB(30, 30, 30); SwitchBG.Text = ""; Instance.new("UICorner", SwitchBG).CornerRadius = UDim.new(1, 0)
+    local Circle = Instance.new("Frame", SwitchBG); Circle.Size = UDim2.new(0, 10, 0, 10); Circle.Position = UDim2.new(0, 2, 0.5, -5); Circle.BackgroundColor3 = Color3.new(1,1,1); Instance.new("UICorner", Circle).CornerRadius = UDim.new(1, 0)
+    local active = false
+    SwitchBG.MouseButton1Click:Connect(function()
+        active = not active
+        TweenService:Create(Circle, TweenInfo.new(0.2), {Position = active and UDim2.new(0, 18, 0.5, -5) or UDim2.new(0, 2, 0.5, -5)}):Play()
+        TweenService:Create(SwitchBG, TweenInfo.new(0.2), {BackgroundColor3 = active and Color3.fromRGB(255, 120, 0) or Color3.fromRGB(30, 30, 30)}):Play()
+        callback(active)
+    end)
+end
+
+function LegendHub:CreateSlider(text, min, max, parent, callback)
+    local SliderFrame = Instance.new("Frame", parent); SliderFrame.Size = UDim2.new(0.94, 0, 0, 45); SliderFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+    Instance.new("UICorner", SliderFrame); Instance.new("UIStroke", SliderFrame).Color = Color3.fromRGB(255, 120, 0)
+    local Label = Instance.new("TextLabel", SliderFrame); Label.Text = text .. ": " .. min; Label.Size = UDim2.new(1, 0, 0, 15); Label.TextColor3 = Color3.new(1,1,1); Label.BackgroundTransparency = 1; Label.Font = "GothamBold"; Label.TextSize = 9
+    local SliderBar = Instance.new("Frame", SliderFrame); SliderBar.Size = UDim2.new(1, -20, 0, 4); SliderBar.Position = UDim2.new(0, 10, 0, 28); SliderBar.BackgroundColor3 = Color3.fromRGB(40, 40, 40); Instance.new("UICorner", SliderBar)
+    local Fill = Instance.new("Frame", SliderBar); Fill.Size = UDim2.new(0, 0, 1, 0); Fill.BackgroundColor3 = Color3.fromRGB(255, 120, 0); Instance.new("UICorner", Fill)
+    local Thumb = Instance.new("TextButton", SliderBar); Thumb.Size = UDim2.new(0, 14, 0, 14); Thumb.Position = UDim2.new(0, -7, 0.5, -7); Thumb.BackgroundColor3 = Color3.new(1,1,1); Thumb.Text = ""; Instance.new("UICorner", Thumb).CornerRadius = UDim.new(1, 0); Instance.new("UIStroke", Thumb).Color = Color3.fromRGB(255, 120, 0)
+    local moving = false
+    local function Update()
+        local pos = math.clamp((UIS:GetMouseLocation().X - SliderBar.AbsolutePosition.X) / SliderBar.AbsoluteSize.X, 0, 1); Thumb.Position = UDim2.new(pos, -7, 0.5, -7); Fill.Size = UDim2.new(pos, 0, 1, 0); local val = math.floor(min + (max - min) * pos); Label.Text = text .. ": " .. val; callback(val)
+    end
+    Thumb.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then moving = true end end)
+    UIS.InputChanged:Connect(function(input) if moving and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then Update() end end)
+    UIS.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then moving = false end end)
+end
+
+-- [ ABAS ]
+local TabMain = CreateTab("Principal")
+local TabFarm = CreateTab("Farm")
+local TabAutoBuy = CreateTab("Auto Buy")
+local TabSettings = CreateTab("Settings")
+
+-- [ SETTINGS ]
+local function CreateInfo(text, parent, bgColor, imageID, link)
+    local Box = Instance.new("Frame", parent); Box.Size = UDim2.new(0.94, 0, 0, 35); Box.BackgroundColor3 = bgColor or Color3.fromRGB(20, 20, 20); Instance.new("UICorner", Box)
+    local st = Instance.new("UIStroke", Box); st.Color = bgColor or Color3.fromRGB(255, 120, 0)
+    if link then
+        local btn = Instance.new("TextButton", Box); btn.Size = UDim2.new(1,0,1,0); btn.BackgroundTransparency = 1; btn.Text = ""; btn.ZIndex = 5
+        btn.MouseButton1Click:Connect(function() setclipboard(link); Notify("Discord", "Link do Discord Copiado!") end)
+    end
+    local Content = Instance.new("Frame", Box); Content.Size = UDim2.new(1, 0, 1, 0); Content.BackgroundTransparency = 1
+    local lay = Instance.new("UIListLayout", Content); lay.FillDirection = Enum.FillDirection.Horizontal; lay.HorizontalAlignment = Enum.HorizontalAlignment.Center; lay.VerticalAlignment = Enum.VerticalAlignment.Center; lay.Padding = UDim.new(0, 8)
+    if imageID then local img = Instance.new("ImageLabel", Content); img.Size = UDim2.new(0, 20, 0, 20); img.BackgroundTransparency = 1; img.Image = "rbxassetid://" .. imageID end
+    local l = Instance.new("TextLabel", Content); l.Size = UDim2.new(0, 0, 1, 0); l.AutomaticSize = Enum.AutomaticSize.X; l.BackgroundTransparency = 1; l.Text = text; l.TextColor3 = Color3.new(1,1,1); l.Font = "GothamBold"; l.TextSize = 10
+end
+
+CreateInfo("⚠️ Criador Lord VX ⚠️", TabSettings)
+CreateInfo("⚠️ Script FREE - Legend Hub ⚠️", TabSettings)
+CreateInfo("⚠️ TIKTOK: @xrafaplayz ⚠️", TabSettings)
+CreateInfo("Discord - Legend Hub", TabSettings, Color3.fromHex("#404EED"), "110113107041730", "https://discord.gg/grGxzJtZ6E")
+
+-- [ ABA PRINCIPAL ]
+LegendHub:CreateToggle("WalkSpeed", TabMain, function(s) LegendHub.Flags.WalkSpeed = s end)
+LegendHub:CreateSlider("Velocidade", 1, 200, TabMain, function(v) LegendHub.Flags.WSValue = v end)
+LegendHub:CreateToggle("Auto Hit + Hitbox", TabMain, function(s) LegendHub.Flags.AutoHit = s end)
+LegendHub:CreateToggle("Infinity Jump", TabMain, function(s) LegendHub.Flags.InfJump = s end)
+LegendHub:CreateToggle("Anti-Lag", TabMain, function(s) LegendHub.Flags.AntiLag = s end)
+LegendHub:CreateToggle("Ant Ragdoll", TabMain, function(s) LegendHub.Flags.AntiRagdoll = s end)
+LegendHub:CreateToggle("ESP Player", TabMain, function(s) LegendHub.Flags.ESPPlayer = s end)
+
+-- [ ABA FARM ]
+LegendHub:CreateToggle("Auto Collect", TabFarm, function(s) LegendHub.Flags.CollectMoney = s end)
+LegendHub:CreateToggle("Auto Rebirth", TabFarm, function(s) LegendHub.Flags.AutoRebirth = s end)
+LegendHub:CreateToggle("Auto Buy Clicker", TabFarm, function(s) LegendHub.Flags.AutoBuyClicker = s end)
+
+local BtnOpenBuy = Instance.new("TextButton", TabFarm)
+BtnOpenBuy.Size = UDim2.new(0.94, 0, 0, 35); BtnOpenBuy.BackgroundColor3 = Color3.fromRGB(20, 20, 20); BtnOpenBuy.Text = "Menu Auto Compra"; BtnOpenBuy.Font = "GothamBlack"; BtnOpenBuy.TextColor3 = Color3.new(1,1,1); BtnOpenBuy.TextSize = 10; Instance.new("UICorner", BtnOpenBuy); Instance.new("UIStroke", BtnOpenBuy).Color = Color3.fromRGB(255, 120, 0)
+BtnOpenBuy.MouseButton1Click:Connect(function() BuyMenu.Visible = not BuyMenu.Visible end)
+
+LegendHub:CreateToggle("Auto Compra", BuyContent, function(s) LegendHub.Flags.AutoTouch = s end)
+
+-- [ ABA AUTO BUY ]
+LegendHub:CreateDropdown("Selecionar Ingrediente", {"Ice Emblem", "Victrola", "Star", "Flower", "Phone"}, TabAutoBuy, function(v) LegendHub.Flags.SelectedIng = v end)
+LegendHub:CreateToggle("Auto Buy Ingredientes", TabAutoBuy, function(s) LegendHub.Flags.AutoBuyIng = s end)
+LegendHub:CreateDropdown("Raridade Brainrots", {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic", "Secret", "Stellar"}, TabAutoBuy, function(v) LegendHub.Flags.SelectedRarity = v end)
+LegendHub:CreateToggle("Auto Buy Brainrots", TabAutoBuy, function(s) LegendHub.Flags.AutoBuyBrainrots = s end)
+
+-- [ LOGO E INTRO ORIGINAL ]
+local Logo = Instance.new("ImageButton", Screen)
+Logo.Size = UDim2.new(0, 50, 0, 50); Logo.Position = UDim2.new(0, 20, 0.5, -25); Logo.BackgroundColor3 = Color3.fromRGB(15, 15, 15); Logo.Image = "rbxassetid://89910548903426"; Logo.Visible = false; Instance.new("UICorner", Logo).CornerRadius = UDim.new(1, 0); Instance.new("UIStroke", Logo).Color = Color3.fromRGB(255, 120, 0); MakeDraggable(Logo)
+
+task.spawn(function()
+    local Intro = Instance.new("TextLabel", Screen)
+    Intro.Size = UDim2.new(1, 0, 1, 0); Intro.BackgroundTransparency = 1; Intro.Text = "LEGEND HUB"; Intro.Font = "GothamBlack"; Intro.TextSize = 2; Intro.TextColor3 = Color3.new(1, 1, 1)
+    task.spawn(function() local h = 0 while Intro.Parent do Intro.TextColor3 = Color3.fromHSV(h, 0.7, 1); h = h + 0.01; task.wait() end end)
+    TweenService:Create(Intro, TweenInfo.new(1.2, Enum.EasingStyle.Back), {TextSize = 65}):Play()
+    task.wait(2); TweenService:Create(Intro, TweenInfo.new(1), {TextTransparency = 1}):Play()
+    task.wait(1); Intro:Destroy(); Logo.Visible = true
+end)
+
+-- [ LÓGICA DE JOGO ]
+local function MuteSounds()
+    for _, s in pairs(game:GetDescendants()) do if s:IsA("Sound") then local n = s.Name:lower() if n:find("coin") or n:find("money") or n:find("collect") or n:find("cash") or n:find("rebirth") then s.Volume = 0 end end end
+end
+
+task.spawn(function()
+    while true do
+        task.wait(0.1)
+        if Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
+            local root = Player.Character.HumanoidRootPart
+            if LegendHub.Flags.CollectMoney then
+                MuteSounds()
+                for _, obj in pairs(workspace:GetDescendants()) do
+                    if obj:IsA("BasePart") and (obj.Name:lower() == "collect" or obj.Name:lower() == "coin" or obj.Name:lower() == "gem") then
+                        firetouchinterest(root, obj, 0); firetouchinterest(root, obj, 1)
+                    end
+                end
+            end
+            if LegendHub.Flags.AutoRebirth then
+                MuteSounds()
+                for _, obj in pairs(workspace:GetDescendants()) do
+                    if obj:IsA("BasePart") and (obj.Name:lower():find("rebirth") or obj.Name:lower():find("prestige")) then
+                        firetouchinterest(root, obj, 0); firetouchinterest(root, obj, 1)
+                    end
+                end
+            end
+        end
+    end
+end)
+
+RunService.Heartbeat:Connect(function()
+    local char = Player.Character
+    if char and char:FindFirstChild("Humanoid") then
+        local Hum = char.Humanoid
+        local HRP = char:FindFirstChild("HumanoidRootPart")
+
+        if LegendHub.Flags.WalkSpeed then Hum.WalkSpeed = LegendHub.Flags.WSValue end
+        
+        if LegendHub.Flags.AutoHit then
+            local tool = char:FindFirstChildOfClass("Tool")
+            if tool then tool:Activate() end
+            for _, p in pairs(Players:GetPlayers()) do
+                if p ~= Player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                    p.Character.HumanoidRootPart.Size = Vector3.new(150, 150, 150); p.Character.HumanoidRootPart.Transparency = 1; p.Character.HumanoidRootPart.CanCollide = false
+                end
+            end
+        end
+
+        if LegendHub.Flags.AutoTouch then
+            for _, obj in pairs(workspace:GetDescendants()) do
+                if obj:IsA("ProximityPrompt") and HRP and (HRP.Position - obj.Parent.Position).Magnitude < 20 then
+                    fireproximityprompt(obj)
+                end
+            end
+        end
+
+        -- [ ANT RAGDOLL - LÓGICA REFEITA ]
+        if LegendHub.Flags.AntiRagdoll then
+            local State = Hum:GetState()
+            if State == Enum.HumanoidStateType.Ragdoll or State == Enum.HumanoidStateType.FallingDown then
+                Hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+            end
+            if HRP then
+                HRP.RotVelocity = Vector3.new(0,0,0) -- Impede que o boneco fique a girar sem parar
+            end
+        end
+
+        -- ESP Player
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= Player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                local hrp = p.Character.HumanoidRootPart
+                if LegendHub.Flags.ESPPlayer then
+                    if not hrp:FindFirstChild("LegendESP") then
+                        local b = Instance.new("BoxHandleAdornment", hrp); b.Name = "LegendESP"; b.AlwaysOnTop = true; b.Size = Vector3.new(4,6,0.5); b.Color3 = Color3.fromRGB(255,120,0); b.Adornee = hrp; b.ZIndex = 10; b.Transparency = 0.5
+                    end
+                else
+                    if hrp:FindFirstChild("LegendESP") then hrp.LegendESP:Destroy() end
+                end
+            end
+        end
+    end
+    -- Anti-Lag
+    if LegendHub.Flags.AntiLag then
+        for _, v in pairs(game:GetDescendants()) do if v:IsA("BasePart") then v.Material = Enum.Material.SmoothPlastic end end
+    end
+end)
+
+-- Auto Buy Clicker
+RunService.Stepped:Connect(function()
+    if LegendHub.Flags.AutoBuyClicker then
+        for _, v in pairs(workspace:GetDescendants()) do if v:IsA("ProximityPrompt") then v.HoldDuration = 0 end end
+    end
+end)
+
+UIS.JumpRequest:Connect(function() if LegendHub.Flags.InfJump and Player.Character then Player.Character.Humanoid:ChangeState(3) end end)
+Logo.MouseButton1Click:Connect(function() Main.Visible = not Main.Visible end)
+Tabs["Principal"].Btn.BackgroundColor3 = Color3.fromRGB(255, 120, 0); Tabs["Principal"].Page.Visible = true
